@@ -8490,6 +8490,8 @@ void __meminit kswapd_run(int nid)
 			BUG_ON(system_state < SYSTEM_RUNNING);
 			pr_err("Failed to start kswapd on node %d\n", nid);
 			pgdat->kswapd = NULL;
+		} else {
+			kcompressd_run(nid);
 		}
 	}
 	pgdat_kswapd_unlock(pgdat);
@@ -8510,6 +8512,7 @@ void __meminit kswapd_stop(int nid)
 		kthread_stop(kswapd);
 		pgdat->kswapd = NULL;
 	}
+	kcompressd_stop(nid);
 	pgdat_kswapd_unlock(pgdat);
 }
 
