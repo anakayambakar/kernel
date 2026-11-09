@@ -2868,6 +2868,21 @@ static int unknown_module_param_cb(char *param, char *val, const char *modname,
 }
 
 /* Module within temporary copy, this doesn't do any allocation  */
+/* rodin: these modules are built into this kernel. Vendor first-stage
+ * init still tries to load zsmalloc.ko/zram.ko from the vendor ramdisk,
+ * which fails with "exports duplicate symbol" and panics with exit 127.
+ * Skip them here so insmod returns success without actually loading.  */
+static bool rodin_skip_builtin_module(const char *name)
+{
+	if (!name)
+		return false;
+	if (!strncmp(name, "zram", 4) && !name[4])
+		return true;
+	if (!strncmp(name, "zsmalloc", 8) && !name[8])
+		return true;
+	return false;
+}
+
 static int early_mod_check(struct load_info *info, int flags)
 {
 	int err;
@@ -2939,6 +2954,12 @@ static int load_module(struct load_info *info, const char __user *uargs,
     
     if (blacklisted(info->name)) {
 		pr_err("Module %s is blacklisted\n", info->name);
+		goto free_copy;
+	}
+
+	/* rodin: silently skip builtin zram/zsmalloc loads. */
+	if (rodin_skip_builtin_module(info->name)) {
+		pr_warn("module %s already built-in, skipping load\n", info->name);
 		goto free_copy;
 	}
 
