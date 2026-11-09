@@ -149,6 +149,11 @@ static bool memblock_memsize_tracking __initdata_memblock = true;
  */
 static __refdata struct memblock_type *memblock_memory = &memblock.memory;
 
+#define for_each_memblock_type(i, memblock_type, rgn)			\
+	for (i = 0, rgn = &memblock_type->regions[0];			\
+	     i < memblock_type->cnt;					\
+	     i++, rgn = &memblock_type->regions[i])
+
 #define memblock_dbg(fmt, ...)						\
 	do {								\
 		if (memblock_debug)					\
@@ -577,29 +582,6 @@ static void __init_memblock memblock_insert_region(struct memblock_type *type,
 }
 
 /**
- * __memblock_search - Find the first region index where rend > base
- * @type: memblock type to search
- * @base: base physical address of the candidate range
- *
- * Returns the first region index that could potentially overlap @base.
- */
-static int __init_memblock __memblock_search(struct memblock_type *type,
-						  phys_addr_t base)
-{
-	int mid, low = 0;
-	int high = type->cnt;
-
-	while (low < high) {
-		mid = (low + high) / 2;
-		if (type->regions[mid].base + type->regions[mid].size <= base)
-			low = mid + 1;
-		else
-			high = mid;
-	}
-	return low;
-}
-
-/**
  * memblock_add_range - add new memblock region
  * @type: memblock type to add new region into
  * @base: base address of the new region
@@ -623,6 +605,7 @@ static int __init_memblock memblock_add_range(struct memblock_type *type,
 	phys_addr_t obase = base;
 	phys_addr_t end = base + memblock_cap_size(base, &size);
 	int idx, nr_new, start_rgn = -1, end_rgn;
+	struct memblock_region *rgn;
 	phys_addr_t new_size = 0;
 
 	if (!size)
@@ -658,10 +641,8 @@ repeat:
 	 */
 	base = obase;
 	nr_new = 0;
-	idx = __memblock_search(type, base);
 
-	for (; idx < type->cnt; idx++) {
-		struct memblock_region *rgn = &type->regions[idx];
+	for_each_memblock_type(idx, type, rgn) {
 		phys_addr_t rbase = rgn->base;
 		phys_addr_t rend = rbase + rgn->size;
 
@@ -834,6 +815,7 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
 {
 	phys_addr_t end = base + memblock_cap_size(base, &size);
 	int idx;
+	struct memblock_region *rgn;
 
 	*start_rgn = *end_rgn = 0;
 
@@ -845,10 +827,7 @@ static int __init_memblock memblock_isolate_range(struct memblock_type *type,
 		if (memblock_double_array(type, base, size) < 0)
 			return -ENOMEM;
 
-	idx = __memblock_search(type, base);
-
-	for (; idx < type->cnt; idx++) {
-		struct memblock_region *rgn = &type->regions[idx];
+	for_each_memblock_type(idx, type, rgn) {
 		phys_addr_t rbase = rgn->base;
 		phys_addr_t rend = rbase + rgn->size;
 
@@ -1874,10 +1853,19 @@ void __init memblock_mem_limit_remove_map(phys_addr_t limit)
 
 static int __init_memblock memblock_search(struct memblock_type *type, phys_addr_t addr)
 {
-	int idx = __memblock_search(type, addr);
+	unsigned int left = 0, right = type->cnt;
 
-	if (idx < type->cnt && addr >= type->regions[idx].base)
-		return idx;
+	do {
+		unsigned int mid = (right + left) / 2;
+
+		if (addr < type->regions[mid].base)
+			right = mid;
+		else if (addr >= (type->regions[mid].base +
+				  type->regions[mid].size))
+			left = mid + 1;
+		else
+			return mid;
+	} while (left < right);
 	return -1;
 }
 
@@ -1992,11 +1980,11 @@ static void __init_memblock memblock_dump(struct memblock_type *type)
 	phys_addr_t base, end, size;
 	enum memblock_flags flags;
 	int idx;
+	struct memblock_region *rgn;
 
 	pr_info(" %s.cnt  = 0x%lx\n", type->name, type->cnt);
 
-	for (idx = 0; idx < type->cnt; idx++) {
-		struct memblock_region *rgn = &type->regions[idx];
+	for_each_memblock_type(idx, type, rgn) {
 		char nid_buf[32] = "";
 
 		base = rgn->base;
@@ -2284,11 +2272,11 @@ void __init memblock_memsize_detect_hole(void)
 	phys_addr_t base, end;
 	phys_addr_t prev_end, hole_sz;
 	int idx;
+	struct memblock_region *rgn;
 	int memblock_cnt = (int)memblock.memory.cnt;
 
 	/* assume that the hole size is less than 1 GB */
-	for (idx = 0; idx < type->cnt; idx++) {
-		struct memblock_region *rgn = &type->regions[idx];
+	for_each_memblock_type(idx, (&memblock.memory), rgn) {
 		prev_end = (idx == 0) ? round_down(rgn->base, SZ_1G) : end;
 		base = rgn->base;
 		end = rgn->base + rgn->size;
