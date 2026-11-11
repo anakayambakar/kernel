@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause
 /*
- * Copyright (c) Facebook, Inc.
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  * All rights reserved.
  *
  * This source code is licensed under both the BSD-style license (found in the
@@ -91,6 +91,12 @@ zstd_compression_parameters zstd_get_cparams(int level,
 	return ZSTD_getCParams(level, estimated_src_size, dict_size);
 }
 EXPORT_SYMBOL(zstd_get_cparams);
+
+size_t zstd_cctx_set_param(zstd_cctx *cctx, ZSTD_cParameter param, int value)
+{
+	return ZSTD_CCtx_setParameter(cctx, param, value);
+}
+EXPORT_SYMBOL(zstd_cctx_set_param);
 
 size_t zstd_cctx_workspace_bound(const zstd_compression_parameters *cparams)
 {
@@ -208,6 +214,26 @@ size_t zstd_end_stream(zstd_cstream *cstream, zstd_out_buffer *output)
 	return ZSTD_endStream(cstream, output);
 }
 EXPORT_SYMBOL(zstd_end_stream);
+
+void zstd_register_sequence_producer(
+  zstd_cctx *cctx,
+  void* sequence_producer_state,
+  zstd_sequence_producer_f sequence_producer
+) {
+	ZSTD_registerSequenceProducer(cctx, sequence_producer_state, sequence_producer);
+}
+EXPORT_SYMBOL(zstd_register_sequence_producer);
+
+size_t zstd_compress_sequences_and_literals(zstd_cctx *cctx, void* dst, size_t dst_capacity,
+					    const zstd_sequence *in_seqs, size_t in_seqs_size,
+					    const void* literals, size_t lit_size, size_t lit_capacity,
+					    size_t decompressed_size)
+{
+	return ZSTD_compressSequencesAndLiterals(cctx, dst, dst_capacity, in_seqs,
+						 in_seqs_size, literals, lit_size,
+						 lit_capacity, decompressed_size);
+}
+EXPORT_SYMBOL(zstd_compress_sequences_and_literals);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("Zstd Compressor");

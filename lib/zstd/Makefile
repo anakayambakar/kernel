@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0+ OR BSD-3-Clause
 # ################################################################
-# Copyright (c) Facebook, Inc.
+# Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
 #
 # This source code is licensed under both the BSD-style license (found in the
@@ -14,6 +14,7 @@ obj-$(CONFIG_ZSTD_COMMON) += zstd_common.o
 
 zstd_compress-y := \
 		zstd_compress_module.o \
+		zstd_compress_ext.o \
 		compress/fse_compress.o \
 		compress/hist.o \
 		compress/huf_compress.o \
@@ -26,6 +27,7 @@ zstd_compress-y := \
 		compress/zstd_lazy.o \
 		compress/zstd_ldm.o \
 		compress/zstd_opt.o \
+		compress/zstd_preSplit.o \
 
 zstd_decompress-y := \
 		zstd_decompress_module.o \
